@@ -1,3 +1,4 @@
+import {renderReference,logout as logoutRec} from './rec-client.mjs';
 import { renderFinance } from "./finance-view.mjs";
 import { createDemo, groups, standard, all } from "./model.mjs";
 const demo = createDemo();
@@ -105,8 +106,8 @@ function reveal(form) {
 }
 function shell(route) {
   document.querySelector("#header").innerHTML =
-    `<div class="inner"><div class="brand"><img src="assets/logo.svg" alt=""><div>Suivi Dépôt<small>${route === "connexion" ? "Prototype V2" : route === "synthese" ? "Synthèse" : "Utilisateurs"}</small></div></div><span class="badge">Démo</span>${entered ? `<span class="avatar mini" aria-label="Visiteur de démonstration">AD</span><button type="button" class="quiet" data-action="logout" aria-label="Quitter la démonstration">${icon("logout")}</button>` : ""}</div>`;
-  document.querySelector("#navigation").innerHTML = entered
+    `<div class="inner"><div class="brand"><img src="assets/logo.svg" alt=""><div>Suivi Dépôt<small>${route === "connexion" ? "Prototype V2" : route === "synthese" ? "Synthèse" : route === "parametrage" ? "Paramétrage REC" : "Utilisateurs"}</small></div></div><span class="badge">${route === "parametrage" ? "REC protégée" : "Démo"}</span>${entered ? `<span class="avatar mini" aria-label="Visiteur de démonstration">AD</span><button type="button" class="quiet" data-action="logout" aria-label="Quitter la démonstration">${icon("logout")}</button>` : ""}</div>`;
+  document.querySelector("#navigation").innerHTML = entered || route === "parametrage"
     ? [
         ["chart", "Synthèse"],
         ["transactions", "Transactions"],
@@ -116,13 +117,13 @@ function shell(route) {
       ]
         .map(
           ([i, label]) =>
-            `<button type="button" ${["users", "chart"].includes(i) ? `data-action="${i === "chart" ? "summary" : "users"}" ${((i === "chart") === (route === "synthese")) ? 'aria-current="page"' : ""}` : 'disabled title="Hors périmètre de ce prototype"'}>${icon(i)}<span class="nav-label">${label}</span></button>`,
+            `<button type="button" ${["users", "chart", "settings"].includes(i) ? `data-action="${i === "chart" ? "summary" : i === "settings" ? "settings" : "users"}" ${((i === "chart" && route === "synthese") || (i === "settings" && route === "parametrage") || (i === "users" && route === "utilisateurs")) ? 'aria-current="page"' : ""}` : 'disabled title="Hors périmètre de ce prototype"'}>${icon(i)}<span class="nav-label">${label}</span></button>`,
         )
         .join("")
     : "";
 }
 function login() {
-  main.innerHTML = `<div class="login"><div class="welcome"><img src="assets/logo.svg" alt=""><h1>Bienvenue sur Suivi Dépôt</h1><p>Espace de gestion financière & immobilière</p><span class="badge">Prototype visuel V2</span></div><form class="card" id="login-form"><div class="form-error" role="alert" tabindex="-1"></div><label class="field">Identifiant fictif<input name="username" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="ahmed.admin"></label><div class="pin-header"><strong>Code PIN fictif</strong><button type="button" class="quiet" data-reveal aria-pressed="false">${icon("eye")}Afficher</button></div>${pinField("Code PIN (6 chiffres)", "pin")}<small class="hint" id="pin-help">6 chiffres requis — aucune sécurité réelle</small><button class="primary wide" type="submit">Se connecter ${icon("logout")}</button><div class="panel"><strong>Essayer la démonstration</strong>Identifiant : <b>ahmed.admin</b><br>PIN public : <b>123456</b><br>Ces valeurs servent uniquement à simuler la connexion. Tous les écrans restent fictifs.</div></form><p class="login-foot">${icon("shield")} Aucun accès aux données financières réelles.<br>Les modifications disparaissent au rechargement.</p></div>`;
+  main.innerHTML = `<div class="login"><div class="welcome"><img src="assets/logo.svg" alt=""><h1>Bienvenue sur Suivi Dépôt</h1><p>Espace de gestion financière & immobilière</p><span class="badge">Prototype visuel V2</span></div><form class="card" id="login-form"><div class="form-error" role="alert" tabindex="-1"></div><label class="field">Identifiant fictif<input name="username" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="ahmed.admin"></label><div class="pin-header"><strong>Code PIN fictif</strong><button type="button" class="quiet" data-reveal aria-pressed="false">${icon("eye")}Afficher</button></div>${pinField("Code PIN (6 chiffres)", "pin")}<small class="hint" id="pin-help">6 chiffres requis — aucune sécurité réelle</small><button class="primary wide" type="submit">Se connecter ${icon("logout")}</button><div class="panel"><strong>Essayer la démonstration</strong>Identifiant : <b>ahmed.admin</b><br>PIN public : <b>123456</b><br>Ces valeurs servent uniquement à simuler la connexion. La Synthèse et la Saisie restent fictives. Le Paramétrage REC exige une connexion distincte.</div></form><p class="login-foot">${icon("shield")} Les données financières de démonstration restent fictives.<br>Le Paramétrage REC possède une authentification séparée.</p></div>`;
   const form = main.querySelector("form");
   form.querySelector("[data-reveal]").onclick = () => reveal(form);
   form.onsubmit = (e) => {
@@ -297,13 +298,14 @@ function resetPin(u) {
 function render() {
   if (dialog.open) dialog.close();
   const parts = location.hash.slice(1).split("/");
-  if (!entered && parts[0] !== "connexion") {
+  if (!entered && !["connexion","parametrage"].includes(parts[0])) {
     location.replace("#connexion");
     return;
   }
   const route = parts[0] || "connexion";
   shell(route);
   if (route === "connexion") login();
+  else if (route === "parametrage") renderReference(main,{onAuthenticated:()=>{entered=true;shell("parametrage");}});
   else if (route === "synthese") renderFinance(main, { icon, showDialog, error });
   else if (route === "utilisateurs") users();
   else if (route === "creation") create();
@@ -318,7 +320,7 @@ function render() {
     go(entered ? "utilisateurs" : "connexion");
     return;
   }
-  document.title = `${{ connexion: "Connexion", synthese: "Synthèse financière", utilisateurs: "Utilisateurs", creation: "Créer un utilisateur", permissions: "Permissions" }[route]} — Suivi Dépôt · Démonstration`;
+  document.title = `${{ connexion: "Connexion", parametrage: "Paramétrage REC", synthese: "Synthèse financière", utilisateurs: "Utilisateurs", creation: "Créer un utilisateur", permissions: "Permissions" }[route]} — Suivi Dépôt · Démonstration`;
   window.scrollTo(0, 0);
   main.focus();
 }
@@ -328,10 +330,12 @@ document.addEventListener("click", (e) => {
   const action = b.dataset.action,
     id = b.closest("[data-user]")?.dataset.user;
   if (action === "logout") {
+    logoutRec();
     entered = false;
     go("connexion");
   }
   if (action === "users") go("utilisateurs");
+  if (action === "settings") go("parametrage");
   if (action === "summary") go("synthese");
   if (action === "create") go("creation");
   if (action === "permissions") go(`permissions/${id}`);
