@@ -1,48 +1,60 @@
-# Paramétrage REC intégré — non raccordé par défaut
+# Paramétrage REC intégré — pas encore raccordé ou publié
 
-Cette branche ajoute #parametrage à la navigation existante et reprend les
-formulaires US-015 de suivi-depot-app, sans changer les trois modules finance.
-La Synthèse reste une démonstration ; aucun écran Saisie autonome raccordé n'était
-présent dans main. Les libellés du site distinguent données fictives et accès REC.
-Les fonctions de caution se limitent au montant contractuel prévu dans une location ;
-aucun mouvement financier n'est ajouté.
+La même interface (navigation, Synthèse existante, Paramétrage US-015) est servie
+sur Cloud Run, sur une origine indépendante des dépôts Pages du même compte.
+L'URL Pages historique reste un point d'entrée public : après configuration, elle
+redirige vers Cloud Run AVANT toute connexion, création de ticket ou requête métier.
+Les sessions ne sont jamais créées sur l'origine partagée atalebappli.github.io.
+Le changement de domaine est nécessaire : deux chemins Pages ne sont pas une
+frontière de sécurité navigateur. Pas d'iframe Cloud Run dans Pages.
 
-Le PIN public de démonstration ne donne aucun accès aux données Google. Paramétrage
-exige une authentification Google Hotmail autorisée via la passerelle Cloud Run REC.
-Le navigateur ne reçoit aucun secret OAuth, refresh token, ID token Google ou clé
-Apps Script. Un bearer de session applicative court reste seulement en mémoire,
-avec un PKCE éphémère dans sessionStorage pendant la navigation de connexion.
-Une actualisation impose une reconnexion ; la session n'est jamais persistée dans
-localStorage. CORS/erreurs/expiration sont gérés sans cookie tiers ni popup.
+Les trois modules finance restent inchangés et fictifs. Aucun écran Saisie autonome
+raccordé n'était présent dans main. Le sous-dossier referentiel conserve les
+fonctionnalités PR #17 : normalisation, listes, import Excel/CSV/JSON et confirmation.
+Les cautions restent limitées au montant contractuel, pas aux mouvements financiers.
 
-rec-config.mjs est vide par défaut. L'accès actuel Apps Script MYSELF n'est pas
-supposé utilisable par Hotmail. La passerelle, ses secrets, les listes de droits et
-le transport signé du backend doivent être configurés et autorisés séparément.
-Aucun fichier de cette branche n'est déployé et aucune donnée réelle n'est embarquée.
+Le PIN public ne donne aucun accès REC. Le compte Google Hotmail doit être vérifié
+par OpenID et autorisé par email+sub côté serveur et Apps Script. La création d'un
+compte Google avec une adresse Hotmail est possible ; ce n'est pas une connexion
+Microsoft et le fonctionnement de CE compte doit encore être prouvé lors d'une
+connexion réelle. Aucun mot de passe, token ou client secret n'est demandé dans Git
+ou la conversation. Le navigateur reçoit une session applicative courte en mémoire,
+pas un jeton Google. Reconnexion après actualisation ; pas de cookie tiers/popup.
 
-La source du modèle et des formulaires est dans suivi-depot-app. Pour les synchroniser :
+Configuration reproductible :
 
-    node scripts/prepare-rec-reference.mjs /chemin/suivi-depot-demo/referentiel
+1. Synchroniser US-015 depuis le checkout backend :
 
-Puis, seulement après confirmation du Cloud Run REC et revue de la configuration :
+       node scripts/prepare-rec-reference.mjs /chemin/suivi-depot-demo/referentiel
 
-    REC_SERVER_URL=https://<service-REC>.run.app node scripts/configure-rec.mjs
-    node --test tests/configure-rec.test.mjs
+2. Revoir et committer le front. Exporter CE SHA approuvé vers une sortie neuve,
+   dans le contexte Cloud Run du dépôt backend (pas vers Pages) :
 
-Le service et la procédure détaillée sont dans suivi-depot-app/docs/rec/.
-La fusion de main peut déclencher Pages selon le paramétrage existant : ne fusionner
-et ne publier qu'après autorisation. Ne pas remplacer le site par l'ancien export
-demo/ de suivi-depot-app, qui ne contient pas les derniers écrans financiers.
+       node scripts/prepare-cloud-run-site.mjs <SHA_40_FRONT_APPROUVE> /chemin/suivi-depot-app/rec-server/public
 
-Recette : connexion Hotmail → vérifier REC/V2 inactive → simuler le fichier Excel
-fourni (12 lignes, 220000 DA, dates/cautions vides) → observer conflits sans écriture.
-Ne confirmer aucun import tant que REFERENTIEL_V2=1 n'a pas été autorisé séparément.
-Après activation de recette : importer une fois, actualiser/reconnecter, retrouver
-les fiches et réimporter sans doublon. Tester refus du mauvais compte, session
-expirée, déconnexion et échec réseau. Vérifier que Synthèse et ses filtres restent
-fictifs et identiques. Si Safari ne lit pas XLSX, utiliser CSV UTF-8.
+   L'export lit les blobs Git comme données, n'exécute aucun build et exclut les
+   secrets, tests, docs, scripts et configurations privées. Il produit un manifeste
+   avec empreintes ; le serveur vérifie les assets avant son démarrage. La config
+   /rec-config.mjs de Cloud Run est générée avec sa propre origine uniquement.
 
-Le parcours automatisé complet, avec OAuth/Cloud Run/Apps Script/Sheets simulés,
-est dans suivi-depot-app/tests/rec-server/browser.mjs ; définir REC_FRONT_DIR sur
-ce checkout. Il bloque toute destination externe et couvre desktop/390 px. Cela
-ne remplace pas une recette Safari réelle après raccordement autorisé.
+3. Après confirmation/autorisations du service, préparer la redirection Pages :
+
+       REC_SERVER_URL=https://<service-REC>.run.app node scripts/configure-rec.mjs
+       node --test tests/configure-rec.test.mjs
+
+   Ce diff ne contient que l'URL publique, sans secret. La CSP Pages garde
+   connect-src none : aucune requête API avant la redirection. Faire revoir puis
+   autoriser séparément la publication Pages. Ne pas fusionner maintenant.
+
+La passerelle et son audit sont documentés dans suivi-depot-app/docs/rec/.
+Le contexte Docker contient les assets exportés et le code serveur, jamais les
+secrets. Sans assets valides, le serveur refuse de démarrer. Aucun nouveau workflow.
+
+Recette iPhone après autorisation : ouvrir le lien Pages → vérifier la redirection
+vers l'origine REC Cloud Run → Paramétrage → connexion du compte Google Hotmail.
+Refuser le mauvais compte. Vérifier REC et V2 inactive ; simuler l'Excel fourni :
+12 lignes / 220000 DA, dates et cautions vides, conflits affichés sans écriture.
+Tester expiration, reconnexion, déconnexion et absence de données dans le cache.
+L'import réel et REFERENTIEL_V2=1 nécessitent une validation distincte. Tester Safari
+réel, pas seulement le viewport mobile Chromium. Si XLSX n'est pas pris en charge,
+CSV UTF-8 conserve le parcours sécurisé. Les finances restent une démonstration.

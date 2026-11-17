@@ -1,6 +1,14 @@
 import config from './rec-config.mjs';
 let session='',expires=0;
 const key='rec-pkce';
+export function isolatedOrigin(){
+ if(!config.apiBase)return true;const target=new URL(config.apiBase);
+ if(location.origin===target.origin)return true;
+ if(target.protocol!=='https:' && !(target.protocol==='http:' && ['localhost','127.0.0.1'].includes(target.hostname)))throw Error('Origine REC invalide.');
+ // Aucun ticket/session/verifier n'est créé ou transmis depuis Pages.
+ sessionStorage.removeItem(key);const route=/^#(?:synthese|parametrage|connexion)$/.test(location.hash)?location.hash:'#parametrage';
+ location.replace(target.origin+'/'+route);return false;
+}
 const message={SESSION_REQUIRED:'Session expirée. Reconnectez-vous.',ACCOUNT_NOT_ALLOWED:'Ce compte n’est pas autorisé en REC.',FORBIDDEN:'Accès refusé.',REC_TARGET_NOT_CONFIRMED:'La cible REC n’est pas confirmée. Aucune donnée modifiée.'};
 function endpoint(path){if(!config.apiBase)throw Error('Passerelle REC non configurée. Aucun accès Google disponible.');const u=new URL(config.apiBase);if(u.protocol!=='https:' && !(u.protocol==='http:' && ['localhost','127.0.0.1'].includes(u.hostname)))throw Error('Passerelle REC non configurée.');if(u.pathname!=='/' || u.search || u.hash || u.username || u.password)throw Error('Configuration REC invalide.');return u.origin+path;}
 async function post(path,body,auth=false){
@@ -10,11 +18,13 @@ async function post(path,body,auth=false){
 }
 const encode=bytes=>btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 export async function login(){
+ if(!isolatedOrigin())return;
  endpoint('/auth/start');const verifier=encode(crypto.getRandomValues(new Uint8Array(32))),challenge=encode(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier))));
  sessionStorage.setItem(key,verifier);const r=await post('/auth/start',{challenge});const u=new URL(r.url);
  if(u.origin!=='https://accounts.google.com' || u.pathname!=='/o/oauth2/v2/auth')throw Error('Destination de connexion refusée.');location.assign(u.href);
 }
 export async function completeLogin(){
+ if(!isolatedOrigin())return false;
  const match=location.hash.match(/^#parametrage\/login\/([A-Za-z0-9_-]{43})$/);if(!match)return false;
  history.replaceState(null,'','#parametrage');const verifier=sessionStorage.getItem(key);sessionStorage.removeItem(key);
  if(!verifier)throw Error('Connexion interrompue. Recommencez depuis cet onglet.');

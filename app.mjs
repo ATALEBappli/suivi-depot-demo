@@ -1,4 +1,4 @@
-import {renderReference,logout as logoutRec} from './rec-client.mjs';
+import {renderReference,logout as logoutRec,isolatedOrigin} from './rec-client.mjs';
 import { renderFinance } from "./finance-view.mjs";
 import { createDemo, groups, standard, all } from "./model.mjs";
 const demo = createDemo();
@@ -351,5 +351,4 @@ document.addEventListener("click", (e) => {
   if (action === "edit") editUser(demo.get(id));
   if (action === "reset-pin") resetPin(demo.get(id));
 });
-window.addEventListener("hashchange", render);
-render();
+if(isolatedOrigin()){window.addEventListener("hashchange", render);render();}
