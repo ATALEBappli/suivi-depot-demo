@@ -921,3 +921,5 @@ dialog:has(.period-form) { max-height: calc(var(--period-viewport-height, 100dvh
 }
 /* L’attribut hidden doit primer sur la grille des libellés. */
 .period-form [hidden] { display: none !important; }
+
+.rec-reference-frame{width:100%;height:80vh;min-height:600px;border:1px solid #dce2e9;border-radius:12px;background:white}
