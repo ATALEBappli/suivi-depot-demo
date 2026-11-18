@@ -7,7 +7,7 @@ const [sha,destination]=process.argv.slice(2);
 if(!/^[a-f0-9]{40}$/.test(sha || '') || !destination)throw Error('SHA approuvé complet et dossier de sortie neuf requis.');
 const git=(...args)=>execFileSync('git',args,{maxBuffer:3000000});
 if(git('rev-parse',sha+'^{commit}').toString().trim()!==sha)throw Error('Commit absent.');
-const files=git('ls-tree','-r','--name-only',sha).toString().trim().split('\n').filter(p=>['index.html','styles.css','app.mjs','model.mjs','finance-data.mjs','finance-model.mjs','finance-view.mjs','rec-client.mjs'].includes(p) || /^assets\/[A-Za-z0-9_-]+\.(svg|woff2|txt|md)$/.test(p) || /^referentiel\/(index.html|transport.js|referentiel-v2(?:-model|-import)?\.js|referentiel-v2.css)$/.test(p));
+const files=git('ls-tree','-r','--name-only',sha).toString().trim().split('\n').filter(p=>['index.html','styles.css','app.mjs','model.mjs','finance-data.mjs','finance-model.mjs','finance-view.mjs','rec-client.mjs','location-entry.mjs','location-entry-view.mjs'].includes(p) || /^assets\/[A-Za-z0-9_-]+\.(svg|woff2|txt|md)$/.test(p) || /^referentiel\/(index.html|transport.js|referentiel-v2(?:-model|-import)?\.js|referentiel-v2.css)$/.test(p));
 const out=resolve(destination);if(existsSync(out))throw Error('La sortie doit être neuve ; aucun remplacement implicite.');mkdirSync(out,{recursive:true});
 const manifest={schema:1,repository:'ATALEBappli/suivi-depot-demo',sourceSha:sha,files:[]};
 for(const p of files){
