@@ -7,6 +7,7 @@ Décision du 18 novembre 2026 : utiliser **les 12 appartements du référentiel 
 - `location-entry.mjs` prépare les listes à partir de la réponse authentifiée `v2.read` et construit une intention de paiement explicitement marquée `environment: REC`, `testOnly: true`.
 - Aucune liste de noms, loyer réel, adresse ou identifiant d'appartement n'est incluse dans le dépôt.
 - L'interface `location-entry-view.mjs` lit le référentiel via `v2.read` et l'état de sécurité via `rec.status`. Elle permet la prévisualisation et affiche les transactions fictives REC si l'API associée est disponible.
+- L'écran `#synthese-rec` utilise exclusivement `rec.testTransaction.list` et `v2.read` pour les totaux fictifs (entrées, espèces, banque et nombre), les filtres par mois d'opération ou appartement, et l'historique. Aucun appel à `financeFixture` ni aux transactions réelles.
 - La préparation du backend ajoute `rec.testTransaction.create` et `rec.testTransaction.list` dans une PR distincte. Les transactions sont persistées dans une feuille REC dédiée, jamais dans `transactions` historique.
 - **Aucune écriture n'est activée par le code seul** : la propriété privée `REC_TEST_TRANSACTIONS=1`, le rôle administrateur et la validation cible REC sont requis côté serveur. Ne pas positionner la propriété sans validation de l'environnement et du classeur REC.
 
@@ -17,7 +18,7 @@ Décision du 18 novembre 2026 : utiliser **les 12 appartements du référentiel 
 3. Lire `v2.read` via la passerelle serveur de même origine. Refuser absence de session, mauvaise cible, retour incomplet ou V2 indisponible. Proposer les appartements actifs ayant un bail actif à la date d'opération ; aucune copie statique du référentiel.
 4. Après sélection, afficher numéro/type, locataire issu du bail, loyer en vigueur à la date choisie ; préremplir le montant modifiable, la période de loyer et la date. Changement de date = nouveau calcul du bail et du loyer, réinitialisation de toute sélection invalide.
 5. Permettre une transaction **TEST REC** seulement. Afficher une confirmation détaillant logement, période, montant et caractère fictif avant envoi. Empêcher les doubles clics.
-6. Après réponse serveur confirmée, rafraîchir les transactions REC et la Synthèse REC, indépendamment de la fixture de démonstration. Ne pas mélanger transactions de test avec les données historiques/PROD.
+6. Après réponse serveur confirmée, rafraîchir l'historique de saisie REC. L'écran `Synthèse TEST REC` affiche les totaux et filtres indépendamment de la fixture de démonstration. Ne jamais mélanger transactions de test avec les données historiques/PROD.
 
 ## Backend à préparer avant toute écriture
 
@@ -39,6 +40,6 @@ Décision du 18 novembre 2026 : utiliser **les 12 appartements du référentiel 
 
 ## Prochaine tranche de développement
 
-Avant tout essai réel : revue et fusion explicites des PR frontend, passerelle statique et API, configuration complète REC, contrôle de l'authentification, du classeur et du référentiel des 12 appartements. La propriété `REC_TEST_TRANSACTIONS` reste absente par défaut (écriture refusée). La **Synthèse financière REC consolidée** reste à développer : la liste ajoutée est un historique dédié des seules transactions fictives, sans incidence sur les indicateurs de la Synthèse de démonstration.
+Avant tout essai réel : revue et fusion explicites des PR frontend, passerelle statique et API, configuration complète REC, contrôle de l'authentification, du classeur et du référentiel des 12 appartements. La propriété `REC_TEST_TRANSACTIONS` reste absente par défaut (écriture refusée). La **Synthèse TEST REC** ne présente que les encaissements fictifs et ne constitue pas une caisse consolidée ni une analyse des transactions réelles. La Synthèse de démonstration reste inchangée.
 
 Tests préparatoires : `node --test tests/location-entry.test.mjs`.
