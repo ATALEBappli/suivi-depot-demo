@@ -6,8 +6,9 @@ Décision du 18 novembre 2026 : utiliser **les 12 appartements du référentiel 
 
 - `location-entry.mjs` prépare les listes à partir de la réponse authentifiée `v2.read` et construit une intention de paiement explicitement marquée `environment: REC`, `testOnly: true`.
 - Aucune liste de noms, loyer réel, adresse ou identifiant d'appartement n'est incluse dans le dépôt.
-- Aucune écriture ni connexion Google n'est initiée par ce module. Le backend existant n'autorise que `rec.status`, `v2.read`, `v2.simulate`, `v2.write` et `v2.import` ; il **ne possède pas encore d'API de transactions financières REC**.
-- En conséquence, une transaction préparée n'est **pas** une transaction enregistrée. L'écran ne doit jamais afficher un message de succès persistant sur la seule base de cet objet.
+- L'interface `location-entry-view.mjs` lit le référentiel via `v2.read` et l'état de sécurité via `rec.status`. Elle permet la prévisualisation et affiche les transactions fictives REC si l'API associée est disponible.
+- La préparation du backend ajoute `rec.testTransaction.create` et `rec.testTransaction.list` dans une PR distincte. Les transactions sont persistées dans une feuille REC dédiée, jamais dans `transactions` historique.
+- **Aucune écriture n'est activée par le code seul** : la propriété privée `REC_TEST_TRANSACTIONS=1`, le rôle administrateur et la validation cible REC sont requis côté serveur. Ne pas positionner la propriété sans validation de l'environnement et du classeur REC.
 
 ## Parcours cible
 
@@ -20,10 +21,10 @@ Décision du 18 novembre 2026 : utiliser **les 12 appartements du référentiel 
 
 ## Backend à préparer avant toute écriture
 
-- Créer un endpoint dédié aux écritures de test (nom à valider, proposition `rec.transaction.test.create`), dans les listes blanches du Worker, de la passerelle et d'Apps Script REC, **sans** ouvrir l'ancien `action=add` JSONP.
+- Endpoint dédié `rec.testTransaction.create` et lecture `rec.testTransaction.list`, dans les listes blanches de la passerelle et d'Apps Script REC, **sans** ouvrir l'ancien `action=add` JSONP.
 - Exiger identité REC authentifiée, rôle autorisé, environnement et empreintes REC vérifiés, permission d'écriture explicitement activée ; aucun repli vers PROD.
 - Validation serveur stricte : `testOnly === true`, IDs logement/bail/locataire existants et cohérents, dates/période, montant positif, devise DA, rattachement à l'activité locative, mode de paiement autorisé.
-- Enregistrer la nature fictive de manière **persistante** (`is_test`, auteur, horodatage, `requestId` idempotent) afin de filtrer et purger les essais sans toucher aux opérations réelles. Une simple mention « TEST » dans la description ne suffit pas.
+- Enregistrer la nature fictive de manière **persistante** (`testOnly`, acteur, horodatage, `requestId` idempotent) dans la feuille séparée `rec_test_transactions`. Une simple mention « TEST » dans la description ne suffit pas.
 - Refuser l'écriture si la destination est le classeur PROD ou si le schéma REC ne comporte pas le marqueur de test. Ne jamais utiliser des données personnelles du référentiel dans les fixtures de CI.
 - Prévoir récupération après timeout avec le même `requestId`, erreurs sans secrets, contrôle de doublon du couple bail/période seulement si la règle métier le confirme (paiements fractionnés possibles à définir).
 - Ne pas déclencher d'encaissement, de caution, de quittance ou de notification réelle à partir d'une opération fictive.
@@ -38,6 +39,6 @@ Décision du 18 novembre 2026 : utiliser **les 12 appartements du référentiel 
 
 ## Prochaine tranche de développement
 
-Brancher le nouveau formulaire sur `rec-client.request({action:'v2.read'})` après authentification, puis implémenter le endpoint transactionnel sécurisé et la lecture de la Synthèse REC **avant d'autoriser le bouton Enregistrer**. Tant que ce contrat serveur manque, le bouton doit rester inactif ou limité à un aperçu local non persistant.
+Avant tout essai réel : revue et fusion explicites des PR frontend, passerelle statique et API, configuration complète REC, contrôle de l'authentification, du classeur et du référentiel des 12 appartements. La propriété `REC_TEST_TRANSACTIONS` reste absente par défaut (écriture refusée). La **Synthèse financière REC consolidée** reste à développer : la liste ajoutée est un historique dédié des seules transactions fictives, sans incidence sur les indicateurs de la Synthèse de démonstration.
 
 Tests préparatoires : `node --test tests/location-entry.test.mjs`.
