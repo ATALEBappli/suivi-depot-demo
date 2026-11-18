@@ -1,5 +1,7 @@
 import {renderReference,logout as logoutRec,isolatedOrigin} from './rec-client.mjs';
 import { renderFinance } from "./finance-view.mjs";
+import { renderLocationEntry } from "./location-entry-view.mjs";
+import { renderRecTestSummary } from "./rec-test-summary-view.mjs";
 import { createDemo, groups, standard, all } from "./model.mjs";
 const demo = createDemo();
 let entered = false,
@@ -35,6 +37,7 @@ const paths = {
   housing: '<path d="M4 21V4h11v17M8 8h3m-3 4h3m-3 4h3m4-7h5v12M2 21h20"/>',
   settings:
     '<path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/>',
+  'chart-rec': '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 17v-4m4 4V7m4 10v-7"/><circle cx="18" cy="5" r="3"/>',
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
 };
 const icon = (name) =>
@@ -106,10 +109,11 @@ function reveal(form) {
 }
 function shell(route) {
   document.querySelector("#header").innerHTML =
-    `<div class="inner"><div class="brand"><img src="assets/logo.svg" alt=""><div>Suivi Dépôt<small>${route === "connexion" ? "Prototype V2" : route === "synthese" ? "Synthèse" : route === "parametrage" ? "Paramétrage REC" : "Utilisateurs"}</small></div></div><span class="badge">${route === "parametrage" ? "REC protégée" : "Démo"}</span>${entered ? `<span class="avatar mini" aria-label="Visiteur de démonstration">AD</span><button type="button" class="quiet" data-action="logout" aria-label="Quitter la démonstration">${icon("logout")}</button>` : ""}</div>`;
-  document.querySelector("#navigation").innerHTML = entered || route === "parametrage"
+    `<div class="inner"><div class="brand"><img src="assets/logo.svg" alt=""><div>Suivi Dépôt<small>${route === "connexion" ? "Prototype V2" : route === "synthese" ? "Synthèse" : route === "synthese-rec" ? "Synthèse TEST REC" : route === "parametrage" ? "Paramétrage REC" : route === "saisie-rec" ? "Saisie REC" : "Utilisateurs"}</small></div></div><span class="badge">${["parametrage", "saisie-rec", "synthese-rec"].includes(route) ? "REC protégée" : "Démo"}</span>${entered ? `<span class="avatar mini" aria-label="Visiteur de démonstration">AD</span><button type="button" class="quiet" data-action="logout" aria-label="Quitter la démonstration">${icon("logout")}</button>` : ""}</div>`;
+  document.querySelector("#navigation").innerHTML = entered || ["parametrage", "saisie-rec", "synthese-rec"].includes(route)
     ? [
         ["chart", "Synthèse"],
+        ["chart-rec", "Synthèse TEST REC"],
         ["transactions", "Transactions"],
         ["housing", "Logements"],
         ["users", "Utilisateurs"],
@@ -117,7 +121,7 @@ function shell(route) {
       ]
         .map(
           ([i, label]) =>
-            `<button type="button" ${["users", "chart", "settings"].includes(i) ? `data-action="${i === "chart" ? "summary" : i === "settings" ? "settings" : "users"}" ${((i === "chart" && route === "synthese") || (i === "settings" && route === "parametrage") || (i === "users" && route === "utilisateurs")) ? 'aria-current="page"' : ""}` : 'disabled title="Hors périmètre de ce prototype"'}>${icon(i)}<span class="nav-label">${label}</span></button>`,
+            `<button type="button" ${["users", "chart", "chart-rec", "settings", "transactions"].includes(i) ? `data-action="${i === "chart" ? "summary" : i === "chart-rec" ? "synthese-rec" : i === "settings" ? "settings" : i === "transactions" ? "saisie-rec" : "users"}" ${((i === "chart" && route === "synthese") || (i === "chart-rec" && route === "synthese-rec") || (i === "settings" && route === "parametrage") || (i === "transactions" && route === "saisie-rec") || (i === "users" && route === "utilisateurs")) ? 'aria-current="page"' : ""}` : 'disabled title="Hors périmètre de ce prototype"'}>${icon(i)}<span class="nav-label">${i === "transactions" ? "Saisie REC" : label}</span></button>`,
         )
         .join("")
     : "";
@@ -298,7 +302,7 @@ function resetPin(u) {
 function render() {
   if (dialog.open) dialog.close();
   const parts = location.hash.slice(1).split("/");
-  if (!entered && !["connexion","parametrage"].includes(parts[0])) {
+  if (!entered && !["connexion","parametrage", "saisie-rec", "synthese-rec"].includes(parts[0])) {
     location.replace("#connexion");
     return;
   }
@@ -306,6 +310,8 @@ function render() {
   shell(route);
   if (route === "connexion") login();
   else if (route === "parametrage") renderReference(main,{onAuthenticated:()=>{entered=true;shell("parametrage");}});
+  else if (route === "saisie-rec") renderLocationEntry(main);
+  else if (route === "synthese-rec") renderRecTestSummary(main);
   else if (route === "synthese") renderFinance(main, { icon, showDialog, error });
   else if (route === "utilisateurs") users();
   else if (route === "creation") create();
@@ -320,7 +326,7 @@ function render() {
     go(entered ? "utilisateurs" : "connexion");
     return;
   }
-  document.title = `${{ connexion: "Connexion", parametrage: "Paramétrage REC", synthese: "Synthèse financière", utilisateurs: "Utilisateurs", creation: "Créer un utilisateur", permissions: "Permissions" }[route]} — Suivi Dépôt · Démonstration`;
+  document.title = `${{ connexion: "Connexion", parametrage: "Paramétrage REC", "saisie-rec": "Saisie REC", "synthese-rec": "Synthèse TEST REC", synthese: "Synthèse financière", utilisateurs: "Utilisateurs", creation: "Créer un utilisateur", permissions: "Permissions" }[route]} — Suivi Dépôt · Démonstration`;
   window.scrollTo(0, 0);
   main.focus();
 }
@@ -336,6 +342,8 @@ document.addEventListener("click", (e) => {
   }
   if (action === "users") go("utilisateurs");
   if (action === "settings") go("parametrage");
+  if (action === "saisie-rec") go("saisie-rec");
+  if (action === "synthese-rec") go("synthese-rec");
   if (action === "summary") go("synthese");
   if (action === "create") go("creation");
   if (action === "permissions") go(`permissions/${id}`);
