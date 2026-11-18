@@ -6,7 +6,7 @@ export function isolatedOrigin(){
  if(location.origin===target.origin)return true;
  if(target.protocol!=='https:' && !(target.protocol==='http:' && ['localhost','127.0.0.1'].includes(target.hostname)))throw Error('Origine REC invalide.');
  // Aucun ticket/session/verifier n'est créé ou transmis depuis Pages.
- sessionStorage.removeItem(key);const route=/^#(?:synthese|parametrage|saisie-rec|connexion)$/.test(location.hash)?location.hash:'#parametrage';
+ sessionStorage.removeItem(key);const route=/^#(?:synthese|synthese-rec|parametrage|saisie-rec|connexion)$/.test(location.hash)?location.hash:'#parametrage';
  location.replace(target.origin+'/'+route);return false;
 }
 const message={SESSION_REQUIRED:'Session expirée. Reconnectez-vous.',ACCOUNT_NOT_ALLOWED:'Ce compte n’est pas autorisé en REC.',FORBIDDEN:'Accès refusé.',REC_TARGET_NOT_CONFIRMED:'La cible REC n’est pas confirmée. Aucune donnée modifiée.'};
